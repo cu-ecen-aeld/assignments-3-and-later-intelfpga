@@ -14,6 +14,7 @@ dir_name=$(dirname $1)
 #echo  "specified file name: ${file_name}"
 #echo  "specified directory name ${dir_name}"
 
+#check if dir exists
 if [ ! -d $dir_name ]
 then
 	mkdir -p $dir_name
