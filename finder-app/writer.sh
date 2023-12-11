@@ -19,6 +19,12 @@ if [ ! -d $dir_name ]
 then
 
 	mkdir -p $dir_name
+	
+	if [ $? -ne 0 ]
+	then 
+		echo "Couldn't create directory $[dir_name}"
+		exit 1
+	fi
 fi
 	
 echo $2 > $1
