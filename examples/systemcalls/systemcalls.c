@@ -79,7 +79,7 @@ bool do_exec(int count, ...)
 	ret = execv(command[0],command);
         
         if(ret == -1){
-        	perror("execv");
+        	perror("execv error occured");
         	exit(1);
         return false;
        }
@@ -143,7 +143,7 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
         
        
         if(fd < 0){
-            perror("open");
+            perror("fd open error");
             return false;
         }
 
@@ -154,7 +154,7 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
     	ret = execv(command[0],command);
      
        if(ret == -1){
-        	perror("execv");
+        	perror("execv error occured");
         	exit(1);
        }
 
