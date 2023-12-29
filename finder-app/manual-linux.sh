@@ -77,7 +77,7 @@ mkdir -p var/log
 
 echo $(pwd)
 
-tree
+#tree
 
 
 cd "${OUTDIR}"
