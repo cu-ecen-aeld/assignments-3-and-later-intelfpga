@@ -15,5 +15,5 @@ writer.o: writer.c
 	$(CC) -c writer.c
 
 clean: 
-	rm *.o 
-	rm writer
+	rm -f *.o 
+	rm -f writer
