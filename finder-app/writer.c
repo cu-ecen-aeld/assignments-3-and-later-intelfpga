@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <syslog.h>
 
+// writer app
 int main(int argc, char *argv[]){
 
 	openlog(argv[0], LOG_PID, LOG_USER);
