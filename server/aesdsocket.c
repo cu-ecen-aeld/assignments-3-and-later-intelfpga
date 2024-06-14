@@ -4,26 +4,28 @@ struct  addrinfo *servinfo;
 int sock_fd, con_fd;
 //char buf[BUF_SIZE];
 List thread_list;
-sem_t write_sem;
+pthread_mutex_t write_mutex;
+struct timespec start_time_val, current_time_val,
+		current_time_res;
+double start_realtime, current_realtime,
+		current_realtime_res;
+struct itimerval tv;
+struct sigaction sa;
+struct itimerspec it_spec;
+timer_t thread_timer;
 
 int main (int argc, char *argv[]){
 	
-	sem_init(&write_sem, 0, 1);
+	pthread_mutex_init(&write_mutex, NULL);
+	
+	if(argc >1 && strcmp(argv[1],"-d") == 0)
+		daemon(1,1);
 	
 	// timer related
-	struct timespec start_time_val, current_time_val,
-		current_time_res;
-	double start_realtime, current_realtime,
-		current_realtime_res;
-	struct itimerval tv;
-	struct sigaction sa;	
+		
+	setup_timer();
 	
-	tv.it_interval.tv_sec = 10;
-	tv.it_interval.tv_usec=0;
-	tv.it_value.tv_sec = 10;
-	tv.it_value.tv_usec=10;
-	
-	setitimer(CLOCKID, &tv, NULL);
+	//setitimer(CLOCKID, &tv, NULL);
 		
 	// socket realted 
 	struct addrinfo hints;
@@ -67,9 +69,6 @@ int main (int argc, char *argv[]){
 		return -1;
 	}
 	
-	if(argc >1 && strcmp(argv[1],"-d") == 0)
-		daemon(1,1);
-	
 	
 		
 	listen(sock_fd, 10);
@@ -104,7 +103,7 @@ int main (int argc, char *argv[]){
 		
 		memset(temp_node->buf, 0, BUF_SIZE);
 		
-		temp_node->write_sem_ptr = &write_sem;
+		temp_node->write_mutex_ptr = &write_mutex;
 		
 		lst_append(&thread_list, (List_Node *) temp_node);
 		
@@ -113,7 +112,6 @@ int main (int argc, char *argv[]){
 				thread_handler,
 				(void*) temp_node);	
 				
-		printf(" lenth:  %d \n", thread_list.length);	
 		/**
 		receive_line(con_fd, buf, BUF_SIZE);
 		
@@ -144,8 +142,6 @@ int main (int argc, char *argv[]){
 			
 			thread_id++;
 			if(node->complete){
-				
-				printf("  %d ,", thread_id);	
 				pthread_join(node->thread, NULL);
 				close(node->con_fd);
 				//syslog(LOG_ERR, "Closed connection from %s \n",node->str_addr);
@@ -154,16 +150,35 @@ int main (int argc, char *argv[]){
 			}
 		}
 		
-		printf("\n");	
-		
-		
-		
-		
 	}
 	
 	//freeaddrinfo(servinfo);
 	//close(sock_fd);
 	//return 0;
+	
+}
+
+void setup_timer(){
+
+	struct itimerval tv;
+	struct sigaction sa;
+	struct itimerspec it_spec;
+	struct sigevent sev;
+	
+	memset(&sev, 0, sizeof(struct sigevent));
+	memset(&it_spec, 0, sizeof(struct itimerspec));
+	
+	sev.sigev_notify = SIGEV_THREAD;
+	sev.sigev_notify_function = (void *) timer_handler; 
+	
+	timer_create(CLOCKID, &sev, &thread_timer);
+
+	it_spec.it_value.tv_sec = 1;
+        it_spec.it_value.tv_nsec = 0;
+        it_spec.it_interval.tv_sec = 5;
+        it_spec.it_interval.tv_nsec = 0;
+           
+	timer_settime(thread_timer, TIMER_ABSTIME, &it_spec, NULL);
 	
 }
 
@@ -179,16 +194,18 @@ static void timer_handler(int signo){
         strftime(outstr, sizeof(outstr), "%a, %d %b %Y %T %z", tmp);
         
         //printf("timestamp:%s \n",outstr);
-        int fd_w = open(SERVER_LOG, O_WRONLY | O_CREAT | O_APPEND, 0644);
         
-        
+         
         sprintf(formatted,"timestamp:%s \n",outstr);
-        sem_wait(&write_sem);
         
+        pthread_mutex_lock(&write_mutex);
+        int fd_w = open(SERVER_LOG, O_WRONLY | O_CREAT | O_APPEND, 0644); 
 	write_line(fd_w, formatted);
+		
 	
+	fsync(fd_w);
 	close(fd_w);
-	sem_post(&write_sem);
+	pthread_mutex_unlock(&write_mutex);
 	
 }
 
@@ -234,38 +251,26 @@ static void *thread_handler(void *threadp){
 	
 	Thread_Hander_Node* list_node = (Thread_Hander_Node*) threadp;
 	
-	//printf(" 1  \n");
 
 	receive_line(list_node->con_fd, list_node->buf, BUF_SIZE);
 	
-	//printf(" 2  \n");
+	pthread_mutex_lock(list_node->write_mutex_ptr);
 	
 	fd_w = open(SERVER_LOG, O_WRONLY | O_CREAT | O_APPEND, 0644);
-	
-	//printf(" 3 \n");
-		
-	sem_wait(list_node->write_sem_ptr);
 	write_line(fd_w, list_node->buf);
-	sem_post(list_node->write_sem_ptr);
-	
-	//printf(" 4  \n");
-	
 	close(fd_w);	
-	
-	//printf(" 5  \n");
+	pthread_mutex_unlock(list_node->write_mutex_ptr);
 	
 	fd_r = open(SERVER_LOG, O_CREAT, 0644);
 		
 	while(read_line(fd_r, list_node->buf, BUF_SIZE))
 			
 		send_line(list_node->con_fd, list_node->buf);
-		
-	//printf(" 6  \n");
+	
 			
 	close(fd_r);
 	
 	list_node->complete=true;
 	
-	//printf(" 7  \n");
 
 }

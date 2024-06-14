@@ -38,10 +38,11 @@ typedef struct t_handler_node {
 	pthread_t thread;
 	int con_fd;
 	char str_addr[INET6_ADDRSTRLEN];
-	sem_t *write_sem_ptr;	
+	pthread_mutex_t *write_mutex_ptr;	
 }Thread_Hander_Node;
 
 static void *thread_handler(void *threadp);
 static void sigint_handler(int signo);
 static void timer_handler(int signo);
 void register_signals();
+void setup_timer();

@@ -3,7 +3,7 @@ default: all
 all: aesdsocket
 
 aesdsocket : aesdsocket.o read_write.o thread_handler.o list.o
-	$(CC) $(LDFLAGS) -o aesdsocket aesdsocket.o read_write.o list.o thread_handler.o -pthread
+	$(CC) $(LDFLAGS) -o aesdsocket aesdsocket.o read_write.o list.o thread_handler.o -pthread -lrt
 	
 list.o: list.c
 	$(CC) $(CCFLAGS) -c list.c
